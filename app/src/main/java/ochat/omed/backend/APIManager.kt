@@ -7,14 +7,14 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitFormWithBinaryData
-import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -23,7 +23,6 @@ import ochat.omed.R
 import ochat.omed.data.parsePill
 import ochat.omed.ui.screens.Pill
 import java.io.File
-import java.time.LocalDateTime
 
 @Serializable
 enum class APIIllnessType(val icon: Int) {
@@ -46,7 +45,7 @@ data class APIPill(
     @SerialName("nombre_del_medicamento")val name: String,
     @SerialName("cropped_image")val image: String,
     @SerialName("frecuencia")val frequency: Int,
-    @SerialName("cantidad_dosis")val dose: Float,
+    @SerialName("cantidad_por_dosis")val dose: Float,
     @SerialName("numero_de_comprimidos")val quantity: Int,
     @SerialName("primera_ingestion")val startDate: String,
     @SerialName("parte_afectada")val illnessType: String,
@@ -58,19 +57,19 @@ val client = HttpClient(CIO) {
     }
 
     engine {
-        requestTimeout = 20_000L
+        requestTimeout = 300_000L
     }
 
     install(HttpTimeout) {
-        requestTimeoutMillis = 20_000
-        connectTimeoutMillis = 20_000
-        socketTimeoutMillis = 20_000
+        requestTimeoutMillis = 300_000
+        connectTimeoutMillis = 300_000
+        socketTimeoutMillis = 300_000
     }
 }
 
 suspend fun getNewPill(imageFile: File, audioFile: File): Pill {
 
-    val response: String = client.post("http://10.20.1.57:5000/transcribe") {
+    val response: HttpResponse = client.post("http://10.20.1.57:5000/transcribe") {
         headers {
             append(HttpHeaders.ContentType, "multipart/form-data; boundary=boundary")
         }
@@ -81,15 +80,23 @@ suspend fun getNewPill(imageFile: File, audioFile: File): Pill {
                         append(HttpHeaders.ContentType, "audio/mpeg")
                         append(HttpHeaders.ContentDisposition, "form-data; name=\"audio\"; filename=\"audio.mp3\"")
                     })
-                    append("image", imageFile.readBytes(), Headers.build {
-                        append(HttpHeaders.ContentType, "image/jpeg")
-                        append(HttpHeaders.ContentDisposition, "form-data; name=\"image\"; filename=\"image.jpg\"")
+                    append("photo", imageFile.readBytes(), Headers.build {
+                        append(HttpHeaders.ContentType, "photo/jpeg")
+                        append(HttpHeaders.ContentDisposition, "form-data; name=\"photo\"; filename=\"photo.jpg\"")
                     })
                 }
             )
         )
-    }.toString()
+    }
 
-    val apiPill: APIPill = Json.decodeFromString(response)
-    return parsePill(apiPill)
+    val responseBody = response.bodyAsText()
+    Log.d("Response Body", responseBody)
+
+    if (response.status == HttpStatusCode.OK) {
+        val apiPill: APIPill = Json.decodeFromString(responseBody)
+        return parsePill(apiPill)
+    } else {
+        Log.e("ERROR", responseBody)
+        throw Exception("Server error: $responseBody")
+    }
 }

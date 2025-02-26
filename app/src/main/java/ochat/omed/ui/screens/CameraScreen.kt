@@ -90,11 +90,12 @@ fun CameraScreen() {
                     audioFile = recordedFile
                     showRecordingScreen = false
 
-                    if (imageFile != null && audioFile != null && !apiCalled) {
+                    if (imageFile != null && !apiCalled) {
                         apiCalled = true
                         sendToAPI(imageFile!!, audioFile!!, context)
                     } else {
-                        Log.e("CameraScreen", "Error: imageFile or audioFile is null")
+                        if(imageFile == null)
+                            Log.e("CameraScreen", "Error: imageFile or audioFile is null")
                     }
                 }
             )
@@ -118,8 +119,10 @@ fun sendToAPI(imageFile: File, audioFile: File, context: Context) {
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Error occurred", Toast.LENGTH_LONG).show()
             }
+
+            Log.e("ERROR", e.message.toString())
         }
     }
 }
@@ -155,14 +158,14 @@ fun RecordingScreen(onRecordingFinished: (File) -> Unit) {
         if (isRecording && hasMicPermission) {
             val file = File(
                 context.getExternalFilesDir(Environment.DIRECTORY_MUSIC),
-                "recorded_audio.mp3"
+                "recorded_audio.m4a"
             )
             audioFile = file
 
             mediaRecorder = MediaRecorder().apply {
                 try {
                     setAudioSource(MediaRecorder.AudioSource.MIC)
-                    setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     setOutputFile(file.absolutePath)
                     setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
                     prepare()
@@ -195,10 +198,6 @@ fun RecordingScreen(onRecordingFinished: (File) -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (!hasMicPermission) {
-                Text(text = "Please grant microphone permission", color = Color.Red)
-            }
-
             Icon(
                 painter = painterResource(R.drawable.mic),
                 contentDescription = "Mic",
