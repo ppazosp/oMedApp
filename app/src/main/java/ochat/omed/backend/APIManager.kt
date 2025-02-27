@@ -25,13 +25,12 @@ import kotlinx.serialization.json.Json
 import ochat.omed.R
 import ochat.omed.data.TimeArea
 import ochat.omed.data.json
-import ochat.omed.data.parseAPIPill
 import ochat.omed.data.parsePill
 import ochat.omed.ui.screens.Pill
-import org.jetbrains.annotations.Async
+import ochat.omed.ui.screens.playAudioFromBase64
 import java.io.File
 
-val IP = "192.168.1.144"
+val IP = "10.20.1.57"
 
 @Serializable
 enum class APIIllnessType(val icon: Int) {
@@ -137,7 +136,7 @@ suspend fun getPills(): Map<TimeArea, List<Pill>> {
     }
 }
 
-suspend fun getResume(): String {
+suspend fun getResume(): ResumeResponse {
     try {
         val response: HttpResponse = client.post("http://$IP:5004/resumeDay") {
             contentType(ContentType.Application.Json)
@@ -149,7 +148,8 @@ suspend fun getResume(): String {
 
         if (response.status == HttpStatusCode.OK) {
             val resume : ResumeResponse =  Json.decodeFromString(responseBody)
-            return resume.summary
+
+            return resume
 
         } else {
             throw Exception("Error fetching resume: ${response.status}")
