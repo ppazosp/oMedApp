@@ -13,17 +13,22 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ochat.omed.R
 import ochat.omed.data.TimeArea
+import ochat.omed.data.json
+import ochat.omed.data.parseAPIPill
 import ochat.omed.data.parsePill
 import ochat.omed.ui.screens.Pill
+import org.jetbrains.annotations.Async
 import java.io.File
 
 val IP = "192.168.1.144"
@@ -45,6 +50,12 @@ enum class APIPillType(val icon: Int){
 }
 
 @Serializable
+data class ResumeResponse(
+    val summary: String,
+    @SerialName("audio_base64")val audioBase64: String
+)
+
+@Serializable
 data class APIPill(
     @SerialName("nombre_del_medicamento")val name: String,
     @SerialName("cropped_image")val image: String?,
@@ -53,7 +64,8 @@ data class APIPill(
     @SerialName("numero_de_comprimidos")val quantity: Int? =  null,
     @SerialName("primera_ingestion")val startDate: String,
     @SerialName("parte_afectada")val illnessType: String,
-    @SerialName("dosis_restantes")val left: Int?
+    @SerialName("dosis_restantes")val left: Int?,
+    @SerialName("hora_dosis")val doseTime: String?
 )
 
 val client = HttpClient(CIO) {
@@ -112,6 +124,8 @@ suspend fun getPills(): Map<TimeArea, List<Pill>> {
     val responseBody = response.bodyAsText()
     Log.d("Response Body", responseBody)
 
+    json = responseBody
+
     if (response.status == HttpStatusCode.OK) {
         val apiPillsMap: LinkedHashMap<TimeArea, List<APIPill>> = Json.decodeFromString(responseBody)
 
@@ -120,5 +134,28 @@ suspend fun getPills(): Map<TimeArea, List<Pill>> {
         }
     } else {
         throw Exception("Error fetching pills: ${response.status}")
+    }
+}
+
+suspend fun getResume(): String {
+    try {
+        val response: HttpResponse = client.post("http://$IP:5004/resumeDay") {
+            contentType(ContentType.Application.Json)
+            setBody(json)
+        }
+
+        val responseBody = response.bodyAsText()
+        Log.d("Response Body", responseBody)
+
+        if (response.status == HttpStatusCode.OK) {
+            val resume : ResumeResponse =  Json.decodeFromString(responseBody)
+            return resume.summary
+
+        } else {
+            throw Exception("Error fetching resume: ${response.status}")
+        }
+    } catch (e: Exception) {
+        Log.e("getResume", "Error: ${e.message}")
+        throw e
     }
 }

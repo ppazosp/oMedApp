@@ -11,9 +11,12 @@ import ochat.omed.R
 import ochat.omed.backend.APIPill
 import ochat.omed.ui.screens.IllnessType
 import ochat.omed.ui.screens.Pill
+import java.io.ByteArrayOutputStream
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+
+var json :String = ""
 
 val colors = listOf(
     Color(0xFFF197C0),
@@ -125,3 +128,35 @@ fun parsePill(apiPill: APIPill): Pill {
         illnessType
     )
 }
+
+fun parseAPIPill(pill: Pill): APIPill {
+
+    val base64Image: String? = pill.image?.let { bitmapToBase64(it) }
+
+    val startDateString: String = pill.startDate.toString()
+
+    val illnessTypeString = pill.illnessType.name.lowercase()
+
+    return APIPill(
+        name = pill.name,
+        image = base64Image,
+        frequency = pill.frequency,
+        dose = pill.dose,
+        quantity = pill.quantity,
+        startDate = startDateString,
+        illnessType = illnessTypeString,
+        left = null,
+        doseTime = null
+    )
+}
+
+
+fun bitmapToBase64(bitmap: Bitmap): String {
+    val byteArrayOutputStream = ByteArrayOutputStream()
+    // Compress the Bitmap into PNG format and write it to the ByteArrayOutputStream
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
+    val byteArray = byteArrayOutputStream.toByteArray()
+    // Return the Base64 encoded string
+    return Base64.encodeToString(byteArray, Base64.NO_WRAP)
+}
+

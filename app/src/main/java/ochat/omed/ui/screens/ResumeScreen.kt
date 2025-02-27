@@ -3,8 +3,12 @@ package ochat.omed.ui.screens
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.util.Log
+import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +16,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,9 +25,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,19 +43,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.delay
 import ochat.omed.R
 import ochat.omed.backend.getPills
+import ochat.omed.backend.getResume
 import ochat.omed.data.TimeArea
-import ochat.omed.data.bitmap
 import ochat.omed.data.colors
 import ochat.omed.ui.theme.OMedAppTheme
 import java.time.LocalDateTime
@@ -91,10 +99,24 @@ fun getCurrentTimeArea(): TimeArea? {
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "MutableCollectionMutableState")
 @Composable
 fun ResumeScreen() {
-
     var pillsMap by remember { mutableStateOf<Map<TimeArea, List<Pill>>?>(null) }
+    var isResumeVisible by remember { mutableStateOf(false) }
+    var isLoadingVisible by remember { mutableStateOf(true) }
+    var resumeText by remember { mutableStateOf("") }
 
+    val transition = updateTransition(targetState = isResumeVisible, label = "Loading Card Transition")
+    val cardOffsetY by transition.animateDp(
+        label = "Card Slide",
+        transitionSpec = {
+            if (isResumeVisible) {
+                tween(durationMillis = 600)
+            } else {
+                tween(durationMillis = 600)
+            }
+        }
+    ) { if (it) 0.dp else 300.dp }
 
+    // Fetch pills data when the screen is launched
     LaunchedEffect(Unit) {
         try {
             Log.d("LAUNCHED", "LAUNCHED")
@@ -110,19 +132,23 @@ fun ResumeScreen() {
     }
 
     val thisTimeArea = getCurrentTimeArea()
-
     val listState = rememberLazyListState()
 
     if (pillsMap == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(64.dp),
                 color = Color.Black,
                 strokeWidth = 5.dp
             )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "Loading...", fontSize = 18.sp)
         }
         return
     }
@@ -130,7 +156,6 @@ fun ResumeScreen() {
     val startIndex = pillsMap!!.keys.indexOfFirst { it == thisTimeArea }.takeIf { it >= 0 } ?: 0
 
     LaunchedEffect(pillsMap) {
-        Log.d("q", startIndex.toString())
         delay(300)
         listState.scrollToItem(startIndex)
     }
@@ -139,7 +164,6 @@ fun ResumeScreen() {
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.White,
     ) {
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -149,8 +173,7 @@ fun ResumeScreen() {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-            )
-            {
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -175,7 +198,7 @@ fun ResumeScreen() {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = if ( group.key!= thisTimeArea) 16.dp else 0.dp, vertical = 8.dp)
+                                    .padding(horizontal = if (group.key != thisTimeArea) 16.dp else 0.dp, vertical = 8.dp)
                             ) {
                                 PillGroupCard(index, group.key, group.value)
                                 Spacer(modifier = Modifier.size(8.dp))
@@ -184,9 +207,89 @@ fun ResumeScreen() {
                     }
                 }
             }
+
+            LaunchedEffect(isResumeVisible) {
+                if (isResumeVisible) {
+                    try {
+                        val resume = getResume()
+                        resumeText = resume
+                    } catch (e: Exception) {
+                        Log.e("ResumeScreen", "Error fetching resume: ${e.message}")
+                    } finally {
+                        isLoadingVisible = false
+                    }
+                }
+            }
+
+            // Floating Action Button (FAB) at the bottom-right
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        isResumeVisible = !isResumeVisible
+                    },
+                    modifier = Modifier
+                        .padding(0.dp)
+                        .size(64.dp),
+                    containerColor = Color.Black
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "Info",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = cardOffsetY)
+                    .padding(16.dp)
+                    .clickable {
+                        isResumeVisible = false
+                    }
+            ) {
+                if (isResumeVisible) {
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.elevatedCardElevation(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            if (isLoadingVisible) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(64.dp),
+                                    color = Color.Black,
+                                    strokeWidth = 5.dp
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(text = "Loading...", fontSize = 18.sp)
+                            } else {
+                                LazyColumn {
+                                    item {
+                                        Text(text = "Resumen del día", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(text = resumeText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
 @Composable
 fun PillGroupCard(index: Int, timeArea: TimeArea, group: List<Pill>){
     ElevatedCard(
