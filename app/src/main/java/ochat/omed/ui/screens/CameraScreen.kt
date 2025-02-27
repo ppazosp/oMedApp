@@ -1,7 +1,6 @@
 package ochat.omed.ui.screens
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.media.MediaRecorder
 import android.net.Uri
@@ -36,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,7 +63,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ochat.omed.R
-import ochat.omed.backend.getNewPill
+import ochat.omed.backend.insertNewPill
 import ochat.omed.ui.theme.OMedAppTheme
 import java.io.File
 
@@ -80,10 +80,28 @@ fun CameraScreen() {
     var showRecordingScreen by remember { mutableStateOf(false) }
     var imageFile by remember { mutableStateOf<File?>(null) }
     var audioFile by remember { mutableStateOf<File?>(null) }
-    var apiCalled by remember { mutableStateOf(false) }  // Flag to prevent multiple API calls
+    var apiCalled by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) } // State for showing the loading screen
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize()) {
+        if (isLoading) {
+            Log.d("you", "Loading is true, showing spinner.")
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(64.dp),
+                    color = Color.Black,
+                    strokeWidth = 5.dp
+                )
+            }
+
+            return
+        }
+
         if (showRecordingScreen) {
             RecordingScreen(
                 onRecordingFinished = { recordedFile ->
@@ -92,9 +110,18 @@ fun CameraScreen() {
 
                     if (imageFile != null && !apiCalled) {
                         apiCalled = true
-                        sendToAPI(imageFile!!, audioFile!!, context)
+                        isLoading = true // Set loading state to true
+
+                        Log.d("CameraScreen", "Setting isLoading to true")
+
+                        // Send the data asynchronously
+                        sendToAPI(imageFile!!, audioFile!!, context) {
+                            // Once the API call is done, stop the loading
+                            isLoading = false
+                            Log.d("CameraScreen", "Setting isLoading to false")
+                        }
                     } else {
-                        if(imageFile == null)
+                        if (imageFile == null)
                             Log.e("CameraScreen", "Error: imageFile or audioFile is null")
                     }
                 }
@@ -110,19 +137,24 @@ fun CameraScreen() {
     }
 }
 
-fun sendToAPI(imageFile: File, audioFile: File, context: Context) {
+fun sendToAPI(imageFile: File, audioFile: File, context: Context, onComplete: () -> Unit) {
     CoroutineScope(Dispatchers.IO).launch {
         try {
-            getNewPill(imageFile, audioFile)
+            // Simulate API call - insertNewPill(imageFile, audioFile)
+            insertNewPill(imageFile, audioFile)
+
+            // Ensure UI updates happen on the main thread
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Data sent successfully!", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Pill added successfully!", Toast.LENGTH_LONG).show()
+                onComplete() // Callback to stop the loading screen
             }
         } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Error occurred", Toast.LENGTH_LONG).show()
-            }
-
+            // Handle error, still on the main thread
             Log.e("ERROR", e.message.toString())
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                onComplete() // Ensure loading is stopped in case of an error too
+            }
         }
     }
 }
@@ -202,7 +234,7 @@ fun RecordingScreen(onRecordingFinished: (File) -> Unit) {
                 painter = painterResource(R.drawable.mic),
                 contentDescription = "Mic",
                 modifier = Modifier
-                    .size(200.dp)
+                    .size(120.dp)
                     .scale(if (isRecording) scale else 1f)
                     .clickable {
                         if (hasMicPermission) {

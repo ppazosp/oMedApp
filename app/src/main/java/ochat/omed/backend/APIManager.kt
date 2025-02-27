@@ -7,6 +7,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
+import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -20,9 +21,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ochat.omed.R
+import ochat.omed.data.TimeArea
 import ochat.omed.data.parsePill
 import ochat.omed.ui.screens.Pill
 import java.io.File
+
+val IP = "192.168.1.144"
 
 @Serializable
 enum class APIIllnessType(val icon: Int) {
@@ -43,12 +47,13 @@ enum class APIPillType(val icon: Int){
 @Serializable
 data class APIPill(
     @SerialName("nombre_del_medicamento")val name: String,
-    @SerialName("cropped_image")val image: String,
+    @SerialName("cropped_image")val image: String?,
     @SerialName("frecuencia")val frequency: Int,
     @SerialName("cantidad_por_dosis")val dose: Float,
-    @SerialName("numero_de_comprimidos")val quantity: Int,
+    @SerialName("numero_de_comprimidos")val quantity: Int? =  null,
     @SerialName("primera_ingestion")val startDate: String,
     @SerialName("parte_afectada")val illnessType: String,
+    @SerialName("dosis_restantes")val left: Int
 )
 
 val client = HttpClient(CIO) {
@@ -67,9 +72,9 @@ val client = HttpClient(CIO) {
     }
 }
 
-suspend fun getNewPill(imageFile: File, audioFile: File): Pill {
+suspend fun insertNewPill(imageFile: File, audioFile: File): Pill {
 
-    val response: HttpResponse = client.post("http://10.20.1.57:5000/transcribe") {
+    val response: HttpResponse = client.post("http://$IP:5000/transcribe") {
         headers {
             append(HttpHeaders.ContentType, "multipart/form-data; boundary=boundary")
         }
@@ -98,5 +103,22 @@ suspend fun getNewPill(imageFile: File, audioFile: File): Pill {
     } else {
         Log.e("ERROR", responseBody)
         throw Exception("Server error: $responseBody")
+    }
+}
+
+suspend fun getPills(): Map<TimeArea, List<Pill>> {
+    val response: HttpResponse = client.get("http://$IP:5005/medicamentos")
+
+    val responseBody = response.bodyAsText()
+    Log.d("Response Body", responseBody)
+
+    if (response.status == HttpStatusCode.OK) {
+        val apiPillsMap: Map<TimeArea, List<APIPill>> = Json.decodeFromString(responseBody)
+
+        return apiPillsMap.mapValues { entry ->
+            entry.value.map { apiPill -> parsePill(apiPill) }
+        }
+    } else {
+        throw Exception("Error fetching pills: ${response.status}")
     }
 }

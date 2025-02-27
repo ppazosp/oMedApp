@@ -20,12 +20,17 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,11 +40,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.delay
 import ochat.omed.R
-import ochat.omed.data.PillGroup
+import ochat.omed.backend.getPills
 import ochat.omed.data.TimeArea
-import ochat.omed.data.pillGroups
+import ochat.omed.data.bitmap
+import ochat.omed.data.colors
 import ochat.omed.ui.theme.OMedAppTheme
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -49,7 +56,7 @@ data class Pill(
     val image: Bitmap?,
     val frequency: Int,
     val dose: Float,
-    val quantity: Int,
+    val quantity: Int?,
     val startDate: LocalDateTime,
     val illnessType: IllnessType
 )
@@ -80,16 +87,44 @@ fun getCurrentTimeArea(): TimeArea? {
     }?: TimeArea.DEFAULT
 }
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "MutableCollectionMutableState")
 @Composable
 fun ResumeScreen() {
+
+    var pillsMap by remember { mutableStateOf<Map<TimeArea, List<Pill>>?>(null) }
+
+
+    LaunchedEffect(Unit) {
+        try {
+            Log.d("LAUNCHED", "LAUNCHED")
+
+            pillsMap = getPills()
+        } catch (e: Exception) {
+            Log.e("ResumeScreen", "Error fetching pills: ${e.printStackTrace()}")
+        }
+    }
 
     val thisTimeArea = getCurrentTimeArea()
 
     val listState = rememberLazyListState()
-    val startIndex = pillGroups.indexOfFirst { it.timeArea == thisTimeArea }.takeIf { it >= 0 } ?: 0
 
-    LaunchedEffect(Unit) {
+    if (pillsMap == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(64.dp),
+                color = Color.Black,
+                strokeWidth = 5.dp
+            )
+        }
+        return
+    }
+
+    val startIndex = pillsMap!!.keys.indexOfFirst { it == thisTimeArea }.takeIf { it >= 0 } ?: 0
+
+    LaunchedEffect(pillsMap) {
         Log.d("q", startIndex.toString())
         delay(300)
         listState.scrollToItem(startIndex)
@@ -114,30 +149,30 @@ fun ResumeScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                ){
+                ) {
                     Text(
                         text = "My Pill Box",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-
                         modifier = Modifier
                             .padding(bottom = 8.dp)
                     )
                 }
+
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top)
                 ) {
-                    itemsIndexed(pillGroups) { _, group ->
-                        if (!group.pills.isNullOrEmpty()) {
+                    itemsIndexed(pillsMap!!.entries.toList()) { index, group ->
+                        if (group.value.isNotEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding( horizontal = if (group.timeArea != thisTimeArea) 16.dp else 0.dp, vertical = 8.dp)
-                            ){
-                                PillGroupCard(group)
+                                    .padding(horizontal = if ( group.key!= thisTimeArea) 16.dp else 0.dp, vertical = 8.dp)
+                            ) {
+                                PillGroupCard(index, group.key, group.value)
                                 Spacer(modifier = Modifier.size(8.dp))
                             }
                         }
@@ -147,15 +182,14 @@ fun ResumeScreen() {
         }
     }
 }
-
 @Composable
-fun PillGroupCard(group: PillGroup){
+fun PillGroupCard(index: Int, timeArea: TimeArea, group: List<Pill>){
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
             .border(1.5.dp, Color.Black, RoundedCornerShape(12.dp)),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = group.color
+            containerColor = colors[index]
         )
     ) {
         Column(
@@ -168,7 +202,7 @@ fun PillGroupCard(group: PillGroup){
                 modifier = Modifier
             ) {
                 Text(
-                    text = group.timeArea.name,
+                    text = timeArea.name,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -179,7 +213,7 @@ fun PillGroupCard(group: PillGroup){
                     .fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(group.pills!!) { index, pill ->
+                itemsIndexed(group) { index, pill ->
                 Box(
                     modifier = Modifier
                         .size(width = 150.dp, height = 150.dp)
@@ -220,7 +254,7 @@ fun PillCard(pill: Pill){
             Image(
                 modifier = Modifier
                     .size(64.dp),
-                bitmap = pill.image!!.asImageBitmap(),
+                bitmap = bitmap.asImageBitmap(),
                 contentDescription = "Pill type icon",
             )
 

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import ochat.omed.R
@@ -86,14 +87,41 @@ fun base64ToBitmap(base64String: String): Bitmap? {
 }
 
 fun parseDateTime(dateString: String): LocalDateTime {
-    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
     return LocalDateTime.parse(dateString, formatter)
 }
 
-fun parsePill(apiPill: APIPill): Pill{
-    val img : Bitmap? = base64ToBitmap(apiPill.image)
-    val sdate = parseDateTime(apiPill.startDate)
-    val illnessType = IllnessType.valueOf(apiPill.illnessType.uppercase())
+fun parsePill(apiPill: APIPill): Pill {
 
-    return Pill(apiPill.name, img, apiPill.frequency, apiPill.dose, apiPill.quantity, sdate, illnessType)
+    val img: Bitmap? = if (!apiPill.image.isNullOrEmpty()) {
+        base64ToBitmap(apiPill.image)
+    } else {
+        null
+    }
+
+    val sdate: LocalDateTime? = try {
+        parseDateTime(apiPill.startDate)
+    } catch (e: Exception) {
+        Log.e("parsePill", "Invalid startDate: ${apiPill.startDate}")
+        null
+    }
+
+    val illnessType: IllnessType = try {
+        IllnessType.valueOf(apiPill.illnessType.uppercase())
+    } catch (e: IllegalArgumentException) {
+        Log.e("parsePill", "Invalid illnessType: ${apiPill.illnessType}")
+        IllnessType.GENERAL_BODY
+    }
+
+    val quantity = apiPill.quantity ?: 0
+
+    return Pill(
+        apiPill.name,
+        img,
+        apiPill.frequency,
+        apiPill.dose,
+        quantity,
+        sdate!!,
+        illnessType
+    )
 }
