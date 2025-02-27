@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,7 +99,11 @@ fun ResumeScreen() {
         try {
             Log.d("LAUNCHED", "LAUNCHED")
 
-            pillsMap = getPills()
+            val unsortedPillsMap = getPills()
+            pillsMap = unsortedPillsMap.toSortedMap()
+
+            Log.d("LOG", pillsMap.toString())
+
         } catch (e: Exception) {
             Log.e("ResumeScreen", "Error fetching pills: ${e.printStackTrace()}")
         }
@@ -152,7 +157,7 @@ fun ResumeScreen() {
                 ) {
                     Text(
                         text = "My Pill Box",
-                        fontSize = 20.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .padding(bottom = 8.dp)
@@ -195,8 +200,8 @@ fun PillGroupCard(index: Int, timeArea: TimeArea, group: List<Pill>){
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -216,7 +221,7 @@ fun PillGroupCard(index: Int, timeArea: TimeArea, group: List<Pill>){
                 itemsIndexed(group) { index, pill ->
                 Box(
                     modifier = Modifier
-                        .size(width = 150.dp, height = 150.dp)
+                        .size(width = 168.dp, height = 168.dp)
                 )
                 {
                     PillCard(pill)
@@ -254,14 +259,17 @@ fun PillCard(pill: Pill){
             Image(
                 modifier = Modifier
                     .size(64.dp),
-                bitmap = bitmap.asImageBitmap(),
+                painter = painterResource(R.drawable.pill),
                 contentDescription = "Pill type icon",
             )
 
+            Spacer(modifier = Modifier.size(8.dp))
+
             Text(
                 text = pill.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
         }
     }

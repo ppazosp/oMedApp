@@ -53,7 +53,7 @@ data class APIPill(
     @SerialName("numero_de_comprimidos")val quantity: Int? =  null,
     @SerialName("primera_ingestion")val startDate: String,
     @SerialName("parte_afectada")val illnessType: String,
-    @SerialName("dosis_restantes")val left: Int
+    @SerialName("dosis_restantes")val left: Int?
 )
 
 val client = HttpClient(CIO) {
@@ -113,7 +113,7 @@ suspend fun getPills(): Map<TimeArea, List<Pill>> {
     Log.d("Response Body", responseBody)
 
     if (response.status == HttpStatusCode.OK) {
-        val apiPillsMap: Map<TimeArea, List<APIPill>> = Json.decodeFromString(responseBody)
+        val apiPillsMap: LinkedHashMap<TimeArea, List<APIPill>> = Json.decodeFromString(responseBody)
 
         return apiPillsMap.mapValues { entry ->
             entry.value.map { apiPill -> parsePill(apiPill) }

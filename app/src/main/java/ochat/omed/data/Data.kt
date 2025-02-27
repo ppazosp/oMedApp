@@ -33,16 +33,16 @@ enum class TimeArea(
     val startTime: LocalTime,
     val endTime: LocalTime
 ) {
-    JUSTAWAKE(LocalTime.of(6, 0), LocalTime.of(7, 0)),  // Right after waking up
-    BEFOREBREAKFAST(LocalTime.of(7, 0), LocalTime.of(8, 0)), // Before breakfast
-    AFTERBREAKFAST(LocalTime.of(8, 0), LocalTime.of(10, 30)), // After breakfast
-    MIDDAY(LocalTime.of(10, 30), LocalTime.of(12, 30)), // Mid-morning
-    BEFORELUNCH(LocalTime.of(12, 30), LocalTime.of(13, 30)), // Before lunch
-    AFTERLUNCH(LocalTime.of(13, 30), LocalTime.of(15, 30)), // After lunch
-    MIDAFTERNOON(LocalTime.of(15, 30), LocalTime.of(17, 30)), // Mid-afternoon
-    BEFOREDINNER(LocalTime.of(17, 30), LocalTime.of(19, 30)), // Before dinner
-    AFTERDINNER(LocalTime.of(19, 30), LocalTime.of(21, 30)), // After dinner
-    PREVIOUSTOSLEEP(LocalTime.of(21, 30), LocalTime.of(23, 59)),// Before going to sleep
+    JUSTAWAKE(LocalTime.of(6, 0), LocalTime.of(6, 59)),  // Right after waking up
+    BEFOREBREAKFAST(LocalTime.of(7, 0), LocalTime.of(7, 59)), // Before breakfast
+    AFTERBREAKFAST(LocalTime.of(8, 0), LocalTime.of(10, 29)), // After breakfast
+    MIDDAY(LocalTime.of(10, 30), LocalTime.of(12, 29)), // Mid-morning
+    BEFORELUNCH(LocalTime.of(12, 30), LocalTime.of(13, 29)), // Before lunch
+    AFTERLUNCH(LocalTime.of(13, 30), LocalTime.of(15, 29)), // After lunch
+    MIDAFTERNOON(LocalTime.of(15, 30), LocalTime.of(17, 29)), // Mid-afternoon
+    BEFOREDINNER(LocalTime.of(17, 30), LocalTime.of(19, 29)), // Before dinner
+    AFTERDINNER(LocalTime.of(19, 30), LocalTime.of(21, 29)), // After dinner
+    PREVIOUSTOSLEEP(LocalTime.of(21, 30), LocalTime.of(1, 59)),// Before going to sleep
     DEFAULT(LocalTime.of(0, 0), LocalTime.of(0, 0))
 }
 
